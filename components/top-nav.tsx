@@ -1,13 +1,25 @@
 "use client";
 
 import { clientConfig } from "@/lib/client-config";
+import { createClient } from "@/lib/supabase/browser";
+import { useRouter } from "next/navigation";
+import { LogOut } from "lucide-react";
 
 export function TopNav() {
+  const router = useRouter();
+
   const today = new Date().toLocaleDateString("en-US", {
     weekday: "short",
     month: "short",
     day: "numeric",
   });
+
+  async function handleLogout() {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push("/login");
+    router.refresh();
+  }
 
   return (
     <header className="top-nav">
@@ -25,7 +37,7 @@ export function TopNav() {
           <div className="header-divider" />
           <div className="flex flex-col -space-y-0.5">
             <span className="font-display text-[15px] font-bold text-white tracking-tight leading-tight">
-              New Update Intelligence
+              AIMS
             </span>
             <span className="header-subtitle">
               {clientConfig.clientName}
@@ -33,14 +45,23 @@ export function TopNav() {
           </div>
         </div>
 
-        {/* Right: Status cluster */}
-        <div className="header-status-group">
-          <span className="header-date">{today}</span>
-          <div className="header-status-sep" />
-          <div className="header-live-badge">
-            <span className="header-live-dot" />
-            <span className="header-live-text">Live</span>
+        {/* Right: Status cluster + Logout */}
+        <div className="flex items-center gap-3">
+          <div className="header-status-group">
+            <span className="header-date">{today}</span>
+            <div className="header-status-sep" />
+            <div className="header-live-badge">
+              <span className="header-live-dot" />
+              <span className="header-live-text">Live</span>
+            </div>
           </div>
+          <button
+            onClick={handleLogout}
+            title="Sign out"
+            className="flex items-center justify-center w-8 h-8 rounded-full bg-transparent border border-white/[0.06] text-white/35 hover:bg-white/[0.06] hover:border-white/10 hover:text-white/70 active:bg-white/10 transition-all duration-150 cursor-pointer"
+          >
+            <LogOut className="h-4 w-4" />
+          </button>
         </div>
       </div>
     </header>

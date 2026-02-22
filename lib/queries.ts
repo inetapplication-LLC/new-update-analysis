@@ -1,4 +1,4 @@
-import { supabase } from "./supabase";
+import { createClient } from "./supabase/browser";
 import type { RdnNewUpdateRecord, UpdateSourceType } from "./types";
 
 /* ── Shared Types ──────────────────────────────────────────── */
@@ -140,6 +140,7 @@ function classifyDrnHit(record: RdnNewUpdateRecord): string {
 /* ── Queries ───────────────────────────────────────────────── */
 
 export async function fetchDailyUpdates(): Promise<DailyUpdate[]> {
+  const supabase = createClient();
   const allData: { update_date: string }[] = [];
   const PAGE_SIZE = 1000;
   let from = 0;
@@ -182,6 +183,7 @@ export async function fetchDailyUpdates(): Promise<DailyUpdate[]> {
 }
 
 export async function fetchUpdatesByDay(day: string): Promise<EnrichedUpdate[]> {
+  const supabase = createClient();
   const allRecords: RdnNewUpdateRecord[] = [];
   const PAGE_SIZE = 1000;
   let from = 0;

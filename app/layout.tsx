@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
 import { Urbanist, DM_Sans, JetBrains_Mono } from "next/font/google";
-import { TopNav } from "@/components/top-nav";
-import { SiteFooter } from "@/components/site-footer";
 import "./globals.css";
 
 const urbanist = Urbanist({
@@ -26,8 +24,8 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "New Update Intelligence — PVT",
-  description: "Real-time case update monitoring and analysis dashboard",
+  title: "Automated Intelligent Management Suite — PVT",
+  description: "Automated Intelligent Management Suite for Repo Industry",
 };
 
 export default function RootLayout({
@@ -40,9 +38,7 @@ export default function RootLayout({
       <body
         className={`${urbanist.variable} ${dmSans.variable} ${jetbrainsMono.variable} font-sans antialiased`}
       >
-        <TopNav />
-        <div className="pt-[86px] min-h-screen">{children}</div>
-        <SiteFooter />
+        {children}
       </body>
     </html>
   );
