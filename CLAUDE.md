@@ -3,7 +3,7 @@
 ## Project
 
 - **Repo**: inetapplication-LLC/new-update-analysis
-- **Current Version**: v1.0
+- **Current Version**: v1.1
 
 ## Versioning
 
