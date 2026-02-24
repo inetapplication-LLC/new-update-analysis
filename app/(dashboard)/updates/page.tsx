@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { ChevronLeft, ChevronRight, Calendar, PanelLeftClose, PanelLeft } from "lucide-react";
 import { toast } from "sonner";
 import { SourceSidebar } from "@/components/source-sidebar";
@@ -228,13 +228,7 @@ export default function UpdatesPage() {
     setScrollTarget({ category, ts: Date.now() });
   }, []);
 
-  // ── Notification sound: preload on mount ──
-  const notifSoundRef = useRef<HTMLAudioElement | null>(null);
-  useEffect(() => {
-    // Use a short built-in chime via AudioContext
-    notifSoundRef.current = null; // will use AudioContext instead
-  }, []);
-
+  // ── Notification sound via AudioContext ──
   const playNotificationSound = useCallback(() => {
     try {
       const ctx = new AudioContext();
