@@ -4,8 +4,9 @@ import { useEffect, useRef, useCallback } from "react";
 import { createClient } from "@/lib/supabase/browser";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 
-interface RealtimeUpdate {
-  update_id: number;
+export interface RealtimeUpdate {
+  id: number;
+  update_id: number | null;
   update_type: string | null;
   update_date: string | null;
   update_content: string | null;
@@ -23,7 +24,7 @@ interface UseRealtimeUpdatesOptions {
 /**
  * Subscribes to Postgres INSERT events on `rdn_new_updates` via Supabase Realtime.
  * - Buffers rapid inserts and flushes after `debounceMs`
- * - Deduplicates by `update_id` to prevent double-processing on reconnect
+ * - Deduplicates by `id` (PK) to prevent double-processing on reconnect
  * - Cleans up channel on unmount or when `selectedDay` changes
  */
 export function useRealtimeUpdates({
@@ -66,11 +67,11 @@ export function useRealtimeUpdates({
         },
         (payload) => {
           const row = payload.new as RealtimeUpdate;
-          const id = row.update_id;
+          const id = row.id; // Use PK (serial) for dedup, not update_id
 
           // Dedup
-          if (seenIdsRef.current.has(id)) return;
-          seenIdsRef.current.add(id);
+          if (id != null && seenIdsRef.current.has(id)) return;
+          if (id != null) seenIdsRef.current.add(id);
 
           // Prune seen set if it grows too large
           if (seenIdsRef.current.size > 5000) {
@@ -85,7 +86,13 @@ export function useRealtimeUpdates({
           timerRef.current = setTimeout(flush, debounceMs);
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          console.log("[Realtime] Connected to rdn_new_updates channel");
+        } else {
+          console.log("[Realtime] Channel status:", status);
+        }
+      });
 
     channelRef.current = channel;
 

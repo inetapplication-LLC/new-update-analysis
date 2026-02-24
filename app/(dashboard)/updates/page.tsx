@@ -230,7 +230,7 @@ export default function UpdatesPage() {
 
   // ── Realtime: live toast + auto-refresh on new inserts ──
   const handleNewUpdates = useCallback(
-    (updates: { update_id: number; update_type: string | null; update_date: string | null; update_content: string | null }[]) => {
+    (updates: { id: number; update_id: number | null; update_type: string | null; update_date: string | null; update_content: string | null }[]) => {
       if (updates.length === 0) return;
 
       // Determine which day(s) the new updates belong to
