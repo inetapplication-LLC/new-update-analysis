@@ -2,9 +2,11 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { ChevronLeft, ChevronRight, Calendar, PanelLeftClose, PanelLeft } from "lucide-react";
+import { toast } from "sonner";
 import { SourceSidebar } from "@/components/source-sidebar";
 import { CategoryTables } from "@/components/category-tables";
 import { getSourceColor } from "@/lib/constants";
+import { useRealtimeUpdates } from "@/hooks/use-realtime-updates";
 import {
   fetchDailyUpdates,
   fetchUpdatesByDay,
@@ -225,6 +227,84 @@ export default function UpdatesPage() {
     setVisibleCategory(category);
     setScrollTarget({ category, ts: Date.now() });
   }, []);
+
+  // ── Realtime: live toast + auto-refresh on new inserts ──
+  const handleNewUpdates = useCallback(
+    (updates: { update_id: number; update_type: string | null; update_date: string | null; update_content: string | null }[]) => {
+      if (updates.length === 0) return;
+
+      // Determine which day(s) the new updates belong to
+      const updateDays = new Set(
+        updates
+          .map((u) => u.update_date?.substring(0, 10))
+          .filter(Boolean) as string[]
+      );
+
+      const matchesSelectedDay = selectedDay ? updateDays.has(selectedDay) : false;
+
+      // Show toast
+      if (updates.length === 1) {
+        const u = updates[0];
+        const label = u.update_type || "Unknown";
+        if (matchesSelectedDay) {
+          toast.info(`New update: ${label}`, {
+            description: "Data refreshed automatically.",
+          });
+        } else {
+          toast.info(`New update: ${label}`, {
+            description: u.update_date?.substring(0, 10) ?? "",
+            action: {
+              label: "View",
+              onClick: () => {
+                const day = u.update_date?.substring(0, 10);
+                if (day) setSelectedDay(day);
+              },
+            },
+          });
+        }
+      } else {
+        if (matchesSelectedDay) {
+          toast.info(`${updates.length} new updates received`, {
+            description: "Data refreshed automatically.",
+          });
+        } else {
+          const firstDay = [...updateDays][0];
+          toast.info(`${updates.length} new updates received`, {
+            action: firstDay
+              ? {
+                  label: "View",
+                  onClick: () => setSelectedDay(firstDay),
+                }
+              : undefined,
+          });
+        }
+      }
+
+      // Always refresh bar chart counts
+      fetchDailyUpdates()
+        .then((result) => setBarData(result))
+        .catch(console.error);
+
+      // If updates match the selected day, refetch day detail
+      if (matchesSelectedDay && selectedDay) {
+        fetchUpdatesByDay(selectedDay)
+          .then((dayData) => {
+            setDayUpdates(dayData);
+            const firstWithData = computeSourceCounts(dayData).find((s) => s.count > 0);
+            if (firstWithData && !activeSource) {
+              setActiveSource(firstWithData.source);
+            }
+          })
+          .catch(console.error);
+      }
+    },
+    [selectedDay, activeSource]
+  );
+
+  useRealtimeUpdates({
+    selectedDay,
+    onNewUpdates: handleNewUpdates,
+  });
 
   if (loading) {
     return (
