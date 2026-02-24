@@ -68,6 +68,10 @@ export function useRealtimeUpdates({
     // Clear dedup set on day change
     seenIdsRef.current.clear();
 
+    // Debug: log socket connection state
+    console.log("[Realtime] Socket state:", supabase.realtime.connectionState());
+    console.log("[Realtime] Endpoint:", supabase.realtime.endPoint);
+
     // Use unique channel name to avoid conflicts on re-mount
     const channelName = `rdn-updates-${Date.now()}`;
     const channel = supabase
