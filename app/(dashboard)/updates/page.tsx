@@ -228,7 +228,14 @@ export default function UpdatesPage() {
     setScrollTarget({ category, ts: Date.now() });
   }, []);
 
-  // ── Realtime: live toast + auto-refresh on new inserts ──
+  // ── Request desktop notification permission on mount ──
+  useEffect(() => {
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+  }, []);
+
+  // ── Realtime: desktop notification + toast + auto-refresh on new inserts ──
   const handleNewUpdates = useCallback(
     (updates: { id: number; update_id: number | null; update_type: string | null; update_date: string | null; update_content: string | null }[]) => {
       if (updates.length === 0) return;
@@ -242,17 +249,51 @@ export default function UpdatesPage() {
 
       const matchesSelectedDay = selectedDay ? updateDays.has(selectedDay) : false;
 
-      // Show toast
+      // ── Desktop notification (system-level, grabs attention) ──
+      if ("Notification" in window && Notification.permission === "granted") {
+        let title: string;
+        let body: string;
+
+        if (updates.length === 1) {
+          const u = updates[0];
+          title = `New ${u.update_type || "Update"} Update`;
+          body = u.update_content
+            ? u.update_content.substring(0, 120)
+            : "A new update has been received.";
+        } else {
+          title = `${updates.length} New Updates`;
+          const types = [...new Set(updates.map((u) => u.update_type).filter(Boolean))];
+          body = types.length > 0
+            ? `Types: ${types.join(", ")}`
+            : `${updates.length} updates received.`;
+        }
+
+        const notification = new Notification(title, {
+          body,
+          icon: "/icons/icon-192x192.png",
+          tag: "aims-realtime-update",
+          renotify: true,
+        });
+
+        notification.onclick = () => {
+          window.focus();
+          notification.close();
+        };
+      }
+
+      // ── In-app toast ──
       if (updates.length === 1) {
         const u = updates[0];
         const label = u.update_type || "Unknown";
         if (matchesSelectedDay) {
           toast.info(`New update: ${label}`, {
             description: "Data refreshed automatically.",
+            duration: 8000,
           });
         } else {
           toast.info(`New update: ${label}`, {
             description: u.update_date?.substring(0, 10) ?? "",
+            duration: 8000,
             action: {
               label: "View",
               onClick: () => {
@@ -266,10 +307,12 @@ export default function UpdatesPage() {
         if (matchesSelectedDay) {
           toast.info(`${updates.length} new updates received`, {
             description: "Data refreshed automatically.",
+            duration: 8000,
           });
         } else {
           const firstDay = [...updateDays][0];
           toast.info(`${updates.length} new updates received`, {
+            duration: 8000,
             action: firstDay
               ? {
                   label: "View",
