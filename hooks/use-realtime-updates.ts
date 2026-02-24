@@ -86,11 +86,11 @@ export function useRealtimeUpdates({
           timerRef.current = setTimeout(flush, debounceMs);
         }
       )
-      .subscribe((status) => {
+      .subscribe((status, err) => {
         if (status === "SUBSCRIBED") {
           console.log("[Realtime] Connected to rdn_new_updates channel");
         } else {
-          console.log("[Realtime] Channel status:", status);
+          console.log("[Realtime] Channel status:", status, err ? "Error: " + JSON.stringify(err) : "");
         }
       });
 
