@@ -25,9 +25,17 @@ interface UseRealtimeUpdatesOptions {
 let realtimeClient: SupabaseClient | null = null;
 function getRealtimeClient(): SupabaseClient {
   if (!realtimeClient) {
+    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
     realtimeClient = createSupabaseClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      anonKey,
+      {
+        realtime: {
+          params: {
+            apikey: anonKey,
+          },
+        },
+      }
     );
   }
   return realtimeClient;
