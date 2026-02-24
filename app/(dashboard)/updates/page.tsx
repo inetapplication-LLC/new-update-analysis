@@ -272,8 +272,7 @@ export default function UpdatesPage() {
           body,
           icon: "/icons/icon-192x192.png",
           tag: "aims-realtime-update",
-          renotify: true,
-        });
+        } as NotificationOptions);
 
         notification.onclick = () => {
           window.focus();
