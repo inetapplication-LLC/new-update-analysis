@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useCallback } from "react";
-import { createClient } from "@/lib/supabase/browser";
+import { createClient } from "@supabase/supabase-js";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 
 export interface RealtimeUpdate {
@@ -16,6 +16,19 @@ interface UseRealtimeUpdatesOptions {
   selectedDay: string | null;
   onNewUpdates: (updates: RealtimeUpdate[]) => void;
   debounceMs?: number;
+}
+
+// Singleton Supabase client for Realtime (uses anon key directly, no SSR cookies)
+let realtimeClient: ReturnType<typeof createClient> | null = null;
+
+function getRealtimeClient() {
+  if (!realtimeClient) {
+    realtimeClient = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+  }
+  return realtimeClient;
 }
 
 export function useRealtimeUpdates({
@@ -41,60 +54,49 @@ export function useRealtimeUpdates({
   }, []);
 
   useEffect(() => {
-    const supabase = createClient();
-    let cancelled = false;
+    const supabase = getRealtimeClient();
 
     seenIdsRef.current.clear();
 
-    // Must await session before subscribing — Realtime needs the JWT
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (cancelled) return;
+    const channelName = `rdn-updates-${Date.now()}`;
+    const channel = supabase
+      .channel(channelName)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "rdn_new_updates",
+        },
+        (payload) => {
+          const row = payload.new as RealtimeUpdate;
+          const id = row.id;
 
-      if (session?.access_token) {
-        supabase.realtime.setAuth(session.access_token);
-      }
+          if (id != null && seenIdsRef.current.has(id)) return;
+          if (id != null) seenIdsRef.current.add(id);
 
-      const channelName = `rdn-updates-${Date.now()}`;
-      const channel = supabase
-        .channel(channelName)
-        .on(
-          "postgres_changes",
-          {
-            event: "INSERT",
-            schema: "public",
-            table: "rdn_new_updates",
-          },
-          (payload) => {
-            const row = payload.new as RealtimeUpdate;
-            const id = row.id;
-
-            if (id != null && seenIdsRef.current.has(id)) return;
-            if (id != null) seenIdsRef.current.add(id);
-
-            if (seenIdsRef.current.size > 5000) {
-              const arr = [...seenIdsRef.current];
-              seenIdsRef.current = new Set(arr.slice(-2500));
-            }
-
-            bufferRef.current.push(row);
-
-            if (timerRef.current) clearTimeout(timerRef.current);
-            timerRef.current = setTimeout(flush, debounceMs);
+          if (seenIdsRef.current.size > 5000) {
+            const arr = [...seenIdsRef.current];
+            seenIdsRef.current = new Set(arr.slice(-2500));
           }
-        )
-        .subscribe((status, err) => {
-          if (status === "SUBSCRIBED") {
-            console.log("[Realtime] Connected to rdn_new_updates channel");
-          } else {
-            console.log("[Realtime] Channel status:", status, err ?? "");
-          }
-        });
 
-      channelRef.current = channel;
-    });
+          bufferRef.current.push(row);
+
+          if (timerRef.current) clearTimeout(timerRef.current);
+          timerRef.current = setTimeout(flush, debounceMs);
+        }
+      )
+      .subscribe((status, err) => {
+        if (status === "SUBSCRIBED") {
+          console.log("[Realtime] Connected to rdn_new_updates channel");
+        } else {
+          console.log("[Realtime] Channel status:", status, err ?? "");
+        }
+      });
+
+    channelRef.current = channel;
 
     return () => {
-      cancelled = true;
       if (timerRef.current) {
         clearTimeout(timerRef.current);
         timerRef.current = null;
@@ -102,10 +104,8 @@ export function useRealtimeUpdates({
       if (bufferRef.current.length > 0) {
         flush();
       }
-      if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
-        channelRef.current = null;
-      }
+      supabase.removeChannel(channel);
+      channelRef.current = null;
     };
   }, [selectedDay, debounceMs, flush]);
 }
