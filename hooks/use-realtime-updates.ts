@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useCallback } from "react";
-import { createClient } from "@/lib/supabase/browser";
-import type { RealtimeChannel } from "@supabase/supabase-js";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import type { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js";
 
 export interface RealtimeUpdate {
   id: number;
@@ -19,6 +19,18 @@ interface UseRealtimeUpdatesOptions {
   onNewUpdates: (updates: RealtimeUpdate[]) => void;
   /** Debounce window in ms (default 2000) */
   debounceMs?: number;
+}
+
+// Singleton Supabase client for Realtime (avoids multiple WebSocket connections)
+let realtimeClient: SupabaseClient | null = null;
+function getRealtimeClient(): SupabaseClient {
+  if (!realtimeClient) {
+    realtimeClient = createSupabaseClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+  }
+  return realtimeClient;
 }
 
 /**
@@ -51,13 +63,15 @@ export function useRealtimeUpdates({
   }, []);
 
   useEffect(() => {
-    const supabase = createClient();
+    const supabase = getRealtimeClient();
 
     // Clear dedup set on day change
     seenIdsRef.current.clear();
 
+    // Use unique channel name to avoid conflicts on re-mount
+    const channelName = `rdn-updates-${Date.now()}`;
     const channel = supabase
-      .channel("rdn-new-updates-realtime")
+      .channel(channelName)
       .on(
         "postgres_changes",
         {
@@ -67,7 +81,7 @@ export function useRealtimeUpdates({
         },
         (payload) => {
           const row = payload.new as RealtimeUpdate;
-          const id = row.id; // Use PK (serial) for dedup, not update_id
+          const id = row.id;
 
           // Dedup
           if (id != null && seenIdsRef.current.has(id)) return;
@@ -101,7 +115,6 @@ export function useRealtimeUpdates({
         clearTimeout(timerRef.current);
         timerRef.current = null;
       }
-      // Flush any remaining buffered updates
       if (bufferRef.current.length > 0) {
         flush();
       }
