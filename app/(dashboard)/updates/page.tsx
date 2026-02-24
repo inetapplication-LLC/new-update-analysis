@@ -228,6 +228,70 @@ export default function UpdatesPage() {
     setScrollTarget({ category, ts: Date.now() });
   }, []);
 
+  // ── Notification sound: preload on mount ──
+  const notifSoundRef = useRef<HTMLAudioElement | null>(null);
+  useEffect(() => {
+    // Use a short built-in chime via AudioContext
+    notifSoundRef.current = null; // will use AudioContext instead
+  }, []);
+
+  const playNotificationSound = useCallback(() => {
+    try {
+      const ctx = new AudioContext();
+      // Two-tone chime: C5 then E5
+      const playTone = (freq: number, startTime: number, duration: number) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.frequency.value = freq;
+        osc.type = "sine";
+        gain.gain.setValueAtTime(0.3, startTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+        osc.start(startTime);
+        osc.stop(startTime + duration);
+      };
+      const now = ctx.currentTime;
+      playTone(523, now, 0.15);       // C5
+      playTone(659, now + 0.15, 0.2); // E5
+      playTone(784, now + 0.35, 0.3); // G5
+    } catch {
+      // AudioContext not available
+    }
+  }, []);
+
+  // ── Flash tab title when update arrives ──
+  const flashTitleRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const originalTitleRef = useRef<string>("");
+
+  const flashTabTitle = useCallback((message: string) => {
+    // Stop any existing flash
+    if (flashTitleRef.current) {
+      clearInterval(flashTitleRef.current);
+      document.title = originalTitleRef.current;
+    }
+
+    originalTitleRef.current = document.title;
+    let isFlash = false;
+    flashTitleRef.current = setInterval(() => {
+      document.title = isFlash ? originalTitleRef.current : `🔔 ${message}`;
+      isFlash = !isFlash;
+    }, 1000);
+
+    // Stop flashing after 30 seconds or when tab gets focus
+    const stopFlash = () => {
+      if (flashTitleRef.current) {
+        clearInterval(flashTitleRef.current);
+        flashTitleRef.current = null;
+        document.title = originalTitleRef.current;
+      }
+      window.removeEventListener("focus", stopFlash);
+    };
+
+    window.addEventListener("focus", stopFlash);
+    setTimeout(stopFlash, 30000);
+  }, []);
+
   // ── Request desktop notification permission on mount ──
   useEffect(() => {
     if ("Notification" in window && Notification.permission === "default") {
@@ -235,7 +299,7 @@ export default function UpdatesPage() {
     }
   }, []);
 
-  // ── Realtime: desktop notification + toast + auto-refresh on new inserts ──
+  // ── Realtime: sound + flash + toast + auto-refresh on new inserts ──
   const handleNewUpdates = useCallback(
     (updates: { id: number; update_id: number | null; update_type: string | null; update_date: string | null; update_content: string | null }[]) => {
       if (updates.length === 0) return;
@@ -249,7 +313,16 @@ export default function UpdatesPage() {
 
       const matchesSelectedDay = selectedDay ? updateDays.has(selectedDay) : false;
 
-      // ── Desktop notification (system-level, grabs attention) ──
+      // ── Play notification sound ──
+      playNotificationSound();
+
+      // ── Flash browser tab title ──
+      const flashMsg = updates.length === 1
+        ? `New ${updates[0].update_type || "Update"}!`
+        : `${updates.length} New Updates!`;
+      flashTabTitle(flashMsg);
+
+      // ── Desktop notification (system-level) ──
       if ("Notification" in window && Notification.permission === "granted") {
         let title: string;
         let body: string;
@@ -340,7 +413,7 @@ export default function UpdatesPage() {
           .catch(console.error);
       }
     },
-    [selectedDay, activeSource]
+    [selectedDay, activeSource, playNotificationSound, flashTabTitle]
   );
 
   useRealtimeUpdates({
