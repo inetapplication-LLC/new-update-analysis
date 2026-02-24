@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useCallback } from "react";
-import { createClient as createSupabaseClient } from "@supabase/supabase-js";
-import type { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js";
+import { createClient } from "@/lib/supabase/browser";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 
 export interface RealtimeUpdate {
   id: number;
@@ -16,19 +16,6 @@ interface UseRealtimeUpdatesOptions {
   selectedDay: string | null;
   onNewUpdates: (updates: RealtimeUpdate[]) => void;
   debounceMs?: number;
-}
-
-// Singleton Supabase client for Realtime
-let realtimeClient: SupabaseClient | null = null;
-function getRealtimeClient(): SupabaseClient {
-  if (!realtimeClient) {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-    realtimeClient = createSupabaseClient(url, key);
-    // Explicitly set the auth token for the Realtime connection
-    realtimeClient.realtime.setAuth(key);
-  }
-  return realtimeClient;
 }
 
 export function useRealtimeUpdates({
@@ -54,7 +41,15 @@ export function useRealtimeUpdates({
   }, []);
 
   useEffect(() => {
-    const supabase = getRealtimeClient();
+    const supabase = createClient();
+
+    // Get the user's access token and set it for Realtime auth
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.access_token) {
+        supabase.realtime.setAuth(session.access_token);
+      }
+    });
+
     seenIdsRef.current.clear();
 
     const channelName = `rdn-updates-${Date.now()}`;
