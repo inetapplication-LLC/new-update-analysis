@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Urbanist, DM_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -26,6 +26,25 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "Automated Intelligent Management Suite — PVT",
   description: "Automated Intelligent Management Suite for Repo Industry",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Updates",
+  },
+  icons: {
+    apple: "/icons/icon-192.png",
+  },
+  other: {
+    "theme-color": "#7abc64",
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  themeColor: "#7abc64",
 };
 
 export default function RootLayout({

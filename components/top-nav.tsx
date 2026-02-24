@@ -4,6 +4,7 @@ import { clientConfig } from "@/lib/client-config";
 import { createClient } from "@/lib/supabase/browser";
 import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
+import { PushNotificationToggle } from "@/components/push-notification-toggle";
 
 export function TopNav() {
   const router = useRouter();
@@ -37,7 +38,7 @@ export function TopNav() {
           <div className="header-divider" />
           <div className="flex flex-col -space-y-0.5">
             <span className="font-display text-[15px] font-bold text-white tracking-tight leading-tight">
-              AIMS
+              Automated Intelligent Management Suite
             </span>
             <span className="header-subtitle">
               {clientConfig.clientName}
@@ -55,6 +56,7 @@ export function TopNav() {
               <span className="header-live-text">Live</span>
             </div>
           </div>
+          <PushNotificationToggle />
           <button
             onClick={handleLogout}
             title="Sign out"
