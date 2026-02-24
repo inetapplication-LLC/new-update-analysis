@@ -389,50 +389,6 @@
     animation: glow-pulse 2s ease-in-out infinite;
   }
 
-  /* --- Text clamping for update content --- */
-  .text-clamp-3 {
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-  .content-fade-clamp {
-    position: relative;
-    overflow: hidden;
-  }
-  .content-fade-clamp::after {
-    content: "";
-    position: absolute;
-    bottom: 0;
-    left: 42px;
-    right: 0;
-    height: 24px;
-    background: linear-gradient(to bottom, transparent, var(--card));
-    pointer-events: none;
-    border-radius: 0 0 8px 8px;
-  }
-  .update-card:hover .content-fade-clamp::after {
-    background: linear-gradient(to bottom, transparent, color-mix(in oklch, var(--card-accent, var(--color-pvt-green)) 3%, var(--card)));
-  }
-  .show-more-btn {
-    @apply text-xs font-medium mt-1 pl-[42px] cursor-pointer inline-flex items-center gap-1;
-    color: var(--color-pvt-green);
-    background: none;
-    border: none;
-    padding-top: 2px;
-    transition: color var(--duration-fast) var(--ease-smooth);
-  }
-  .show-more-btn:hover {
-    color: var(--color-pvt-green-dark);
-  }
-  .show-more-chevron {
-    transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
-    opacity: 0.7;
-  }
-  .show-more-btn:hover .show-more-chevron {
-    opacity: 1;
-  }
-
   /* --- Section headers --- */
   .section-header {
     font-family: var(--font-display);
@@ -698,24 +654,6 @@
     background: var(--muted);
   }
 
-  /* Expand all toggle button */
-  .expand-all-btn {
-    @apply inline-flex items-center gap-1.5 text-[10px] font-mono font-medium;
-    color: rgba(255, 255, 255, 0.45);
-    padding: 3px 8px;
-    border-radius: 6px;
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    cursor: pointer;
-    transition: all 0.2s ease;
-    letter-spacing: 0.02em;
-  }
-  .expand-all-btn:hover {
-    color: rgba(255, 255, 255, 0.8);
-    background: rgba(255, 255, 255, 0.12);
-    border-color: rgba(255, 255, 255, 0.15);
-  }
-
   /* Category section temporal footer */
   .category-last-updated {
     @apply inline-flex items-center gap-1.5 text-[10px] font-mono;
@@ -733,6 +671,10 @@
     align-self: flex-start;
     border-radius: 12px 0 0 12px;
     z-index: 1;
+    position: sticky;
+    top: 86px;
+    max-height: calc(100vh - 86px);
+    overflow-y: auto;
   }
   .sidebar-header {
     @apply px-5 py-3.5;

@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef, useEffect, useMemo, useState, useCallback } from "react";
-import { Clock, ChevronsDownUp, ChevronsUpDown, ShieldAlert } from "lucide-react";
+import { useRef, useEffect, useMemo, useCallback } from "react";
+import { Clock, ShieldAlert } from "lucide-react";
 import { UpdateTable } from "./update-table";
 import { Badge } from "@/components/ui/badge";
 import type { EnrichedUpdate, CategoryCount } from "@/lib/queries";
@@ -9,11 +9,16 @@ import { getUpdatesForSourceCategory } from "@/lib/queries";
 import { getSourceColor } from "@/lib/constants";
 import { formatCategoryName } from "@/lib/utils";
 
+interface ScrollToken {
+  category: string;
+  ts: number;
+}
+
 interface CategoryTablesProps {
   updates: EnrichedUpdate[];
   source: string;
   categories: CategoryCount[];
-  scrollToCategory: string | null;
+  scrollToCategory: ScrollToken | null;
   onVisibleCategory?: (category: string) => void;
 }
 
@@ -46,13 +51,24 @@ export function CategoryTables({
   const containerRef = useRef<HTMLDivElement>(null);
   const sectionRefs = useRef<Map<string, HTMLElement>>(new Map());
   const headerRefs = useRef<Map<string, HTMLElement>>(new Map());
+  const isScrollingRef = useRef(false);
+  const scrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Programmatic scroll to a category section
   useEffect(() => {
-    if (scrollToCategory) {
-      const el = sectionRefs.current.get(scrollToCategory);
-      if (el) {
-        el.scrollIntoView({ behavior: "smooth", block: "start" });
-      }
+    if (!scrollToCategory) return;
+    const el = sectionRefs.current.get(scrollToCategory.category);
+    if (el) {
+      // Suppress observer during programmatic scroll
+      isScrollingRef.current = true;
+      if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current);
+
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+
+      // Re-enable observer after scroll settles
+      scrollTimerRef.current = setTimeout(() => {
+        isScrollingRef.current = false;
+      }, 600);
     }
   }, [scrollToCategory]);
 
@@ -62,6 +78,9 @@ export function CategoryTables({
 
     const observer = new IntersectionObserver(
       (entries) => {
+        // Skip observer updates during programmatic scroll
+        if (isScrollingRef.current) return;
+
         for (const entry of entries) {
           if (entry.isIntersecting) {
             const cat = entry.target.getAttribute("data-category");
@@ -127,16 +146,6 @@ export function CategoryTables({
 
   const sourceColor = getSourceColor(source);
   const RECOVERY_CATEGORIES = new Set(["on-hook", "repossessed"]);
-  const [expandedAll, setExpandedAll] = useState<Set<string>>(new Set());
-
-  const toggleExpandAll = useCallback((category: string) => {
-    setExpandedAll((prev) => {
-      const next = new Set(prev);
-      if (next.has(category)) next.delete(category);
-      else next.add(category);
-      return next;
-    });
-  }, []);
 
   return (
     <div ref={containerRef} className="category-tables-container">
@@ -144,7 +153,6 @@ export function CategoryTables({
         const catUpdates = categoryUpdatesMap.get(cat.category) || [];
         const isLarge = cat.count >= 8;
         const lastUpdatedLabel = getLastUpdatedLabel(catUpdates);
-        const isAllExpanded = expandedAll.has(cat.category);
         const isRecovery = RECOVERY_CATEGORIES.has(cat.category);
         const headerColor = isRecovery ? "#ef4444" : sourceColor;
 
@@ -208,16 +216,6 @@ export function CategoryTables({
                 )}
               </div>
               <div className="flex items-center gap-3">
-                {cat.count > 2 && (
-                  <button
-                    onClick={() => toggleExpandAll(cat.category)}
-                    className="expand-all-btn"
-                    title={isAllExpanded ? "Collapse all" : "Expand all"}
-                  >
-                    {isAllExpanded ? <ChevronsDownUp size={12} /> : <ChevronsUpDown size={12} />}
-                    <span>{isAllExpanded ? "Collapse" : "Expand"}</span>
-                  </button>
-                )}
                 {lastUpdatedLabel && (
                   <span className="category-last-updated">
                     <Clock size={10} />
@@ -226,7 +224,7 @@ export function CategoryTables({
                 )}
               </div>
             </div>
-            <UpdateTable updates={catUpdates} sourceColor={sourceColor} expandAll={isAllExpanded} />
+            <UpdateTable updates={catUpdates} sourceColor={sourceColor} />
           </section>
         );
       })}

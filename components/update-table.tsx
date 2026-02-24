@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
-import { Clock, Car, Hash, ChevronDown } from "lucide-react";
+import { Clock, Car, Hash } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { EnrichedUpdate } from "@/lib/queries";
 import { getAvatarColor, getInitials, formatClient, formatTime } from "@/lib/utils";
@@ -9,7 +8,6 @@ import { getAvatarColor, getInitials, formatClient, formatTime } from "@/lib/uti
 interface UpdateTableProps {
   updates: EnrichedUpdate[];
   sourceColor?: string;
-  expandAll?: boolean;
 }
 
 function formatVehicle(vehicle: string | null | undefined): string {
@@ -36,51 +34,17 @@ function getFreshness(dateStr: string | null | undefined): { label: string; isRe
   return { label: `${hrs}h ago`, isRecent: hrs <= 2 };
 }
 
-function ContentWithClamp({ content, forceExpand }: { content: string; forceExpand?: boolean }) {
-  const ref = useRef<HTMLParagraphElement>(null);
-  const [clamped, setClamped] = useState(false);
-  const [expanded, setExpanded] = useState(false);
-  const isExpanded = forceExpand || expanded;
-
-  const checkClamp = useCallback(() => {
-    const el = ref.current;
-    if (el) {
-      setClamped(el.scrollHeight > el.clientHeight + 1);
-    }
-  }, []);
-
-  useEffect(() => {
-    checkClamp();
-  }, [content, checkClamp]);
-
+function ContentBlock({ content }: { content: string }) {
   return (
-    <>
-      <div className={`relative pl-[42px] ${!isExpanded && clamped ? "content-fade-clamp" : ""}`}>
-        <p
-          ref={ref}
-          className={`text-[13.5px] leading-[1.65] text-foreground/80 mb-0 ${!isExpanded ? "text-clamp-3" : ""}`}
-        >
-          {content}
-        </p>
-      </div>
-      {(clamped || isExpanded) && !forceExpand && (
-        <button
-          className="show-more-btn"
-          onClick={() => setExpanded((v) => !v)}
-        >
-          <span>{isExpanded ? "Show less" : "Show more"}</span>
-          <ChevronDown
-            size={12}
-            className="show-more-chevron"
-            style={{ transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)" }}
-          />
-        </button>
-      )}
-    </>
+    <div className="pl-[42px]">
+      <p className="text-[13.5px] leading-[1.65] text-foreground/80 mb-0">
+        {content}
+      </p>
+    </div>
   );
 }
 
-export function UpdateTable({ updates, sourceColor, expandAll }: UpdateTableProps) {
+export function UpdateTable({ updates, sourceColor }: UpdateTableProps) {
   if (updates.length === 0) {
     return (
       <div className="flex items-center justify-center py-12 text-muted-foreground">
@@ -186,8 +150,8 @@ export function UpdateTable({ updates, sourceColor, expandAll }: UpdateTableProp
               </div>
             )}
 
-            {/* Row 2: Update content with 3-line clamp */}
-            <ContentWithClamp content={content} forceExpand={expandAll} />
+            {/* Row 2: Update content */}
+            <ContentBlock content={content} />
 
             {/* Row 3: Metadata badges */}
             <div className="flex items-center gap-2 pl-[42px] mt-3">

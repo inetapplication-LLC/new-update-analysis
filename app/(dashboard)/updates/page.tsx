@@ -157,7 +157,7 @@ export default function UpdatesPage() {
 
   const [activeSource, setActiveSource] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
-  const [scrollTarget, setScrollTarget] = useState<string | null>(null);
+  const [scrollTarget, setScrollTarget] = useState<{ category: string; ts: number } | null>(null);
   const [visibleCategory, setVisibleCategory] = useState<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
@@ -216,12 +216,14 @@ export default function UpdatesPage() {
     setActiveSource(source);
     setActiveCategory(null);
     setScrollTarget(null);
+    setVisibleCategory(null);
   }, []);
 
   const handleSelectCategory = useCallback((source: string, category: string) => {
     setActiveSource(source);
     setActiveCategory(category);
-    setScrollTarget(category);
+    setVisibleCategory(category);
+    setScrollTarget({ category, ts: Date.now() });
   }, []);
 
   if (loading) {
