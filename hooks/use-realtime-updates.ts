@@ -13,40 +13,24 @@ export interface RealtimeUpdate {
 }
 
 interface UseRealtimeUpdatesOptions {
-  /** Currently selected day (ISO date string, e.g. "2026-02-24") */
   selectedDay: string | null;
-  /** Called with buffered new updates after debounce window */
   onNewUpdates: (updates: RealtimeUpdate[]) => void;
-  /** Debounce window in ms (default 2000) */
   debounceMs?: number;
 }
 
-// Singleton Supabase client for Realtime (avoids multiple WebSocket connections)
+// Singleton Supabase client for Realtime
 let realtimeClient: SupabaseClient | null = null;
 function getRealtimeClient(): SupabaseClient {
   if (!realtimeClient) {
-    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-    realtimeClient = createSupabaseClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      anonKey,
-      {
-        realtime: {
-          params: {
-            apikey: anonKey,
-          },
-        },
-      }
-    );
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+    realtimeClient = createSupabaseClient(url, key);
+    // Explicitly set the auth token for the Realtime connection
+    realtimeClient.realtime.setAuth(key);
   }
   return realtimeClient;
 }
 
-/**
- * Subscribes to Postgres INSERT events on `rdn_new_updates` via Supabase Realtime.
- * - Buffers rapid inserts and flushes after `debounceMs`
- * - Deduplicates by `id` (PK) to prevent double-processing on reconnect
- * - Cleans up channel on unmount or when `selectedDay` changes
- */
 export function useRealtimeUpdates({
   selectedDay,
   onNewUpdates,
@@ -58,7 +42,6 @@ export function useRealtimeUpdates({
   const seenIdsRef = useRef<Set<number>>(new Set());
   const onNewUpdatesRef = useRef(onNewUpdates);
 
-  // Keep callback ref fresh without triggering re-subscribe
   useEffect(() => {
     onNewUpdatesRef.current = onNewUpdates;
   }, [onNewUpdates]);
@@ -72,15 +55,8 @@ export function useRealtimeUpdates({
 
   useEffect(() => {
     const supabase = getRealtimeClient();
-
-    // Clear dedup set on day change
     seenIdsRef.current.clear();
 
-    // Debug: log socket connection state
-    console.log("[Realtime] Socket state:", supabase.realtime.connectionState());
-    console.log("[Realtime] Endpoint:", supabase.realtime.endPoint);
-
-    // Use unique channel name to avoid conflicts on re-mount
     const channelName = `rdn-updates-${Date.now()}`;
     const channel = supabase
       .channel(channelName)
@@ -95,11 +71,9 @@ export function useRealtimeUpdates({
           const row = payload.new as RealtimeUpdate;
           const id = row.id;
 
-          // Dedup
           if (id != null && seenIdsRef.current.has(id)) return;
           if (id != null) seenIdsRef.current.add(id);
 
-          // Prune seen set if it grows too large
           if (seenIdsRef.current.size > 5000) {
             const arr = [...seenIdsRef.current];
             seenIdsRef.current = new Set(arr.slice(-2500));
@@ -107,7 +81,6 @@ export function useRealtimeUpdates({
 
           bufferRef.current.push(row);
 
-          // Reset debounce timer
           if (timerRef.current) clearTimeout(timerRef.current);
           timerRef.current = setTimeout(flush, debounceMs);
         }
@@ -116,7 +89,7 @@ export function useRealtimeUpdates({
         if (status === "SUBSCRIBED") {
           console.log("[Realtime] Connected to rdn_new_updates channel");
         } else {
-          console.log("[Realtime] Channel status:", status, err ? "Error: " + JSON.stringify(err) : "");
+          console.log("[Realtime] Channel status:", status, err ?? "");
         }
       });
 
